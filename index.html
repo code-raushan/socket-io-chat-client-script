@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Chat Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        #login-container, #chat-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #chat-container {
+            display: none;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        input[type="text"], input[type="password"], button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="login-container">
+        <h2>Login</h2>
+        <input type="text" id="token" placeholder="Enter your JWT token" required>
+        <input type="text" id="courseId" placeholder="Enter course ID" required>
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div id="chat-container">
+        <div id="messages"></div>
+        <input type="text" id="room" placeholder="Enter room name">
+        <button onclick="joinRoom()">Join Room</button>
+        <input type="text" id="message" placeholder="Type a message">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+    <script>
+        let socket;
+        const loginContainer = document.getElementById('login-container');
+        const chatContainer = document.getElementById('chat-container');
+        const messagesDiv = document.getElementById('messages');
+
+        function login() {
+            const token = document.getElementById('token').value;
+            const courseId = document.getElementById('courseId').value;
+
+            socket = io('http://localhost:4000', {
+                auth: { token, courseId }
+            });
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                loginContainer.style.display = 'none';
+                chatContainer.style.display = 'block';
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('Connection error:', error);
+                alert('Failed to connect: ' + error.message);
+            });
+
+            socket.on('chat message', (msg) => {
+                const messageElement = document.createElement('div');
+                messageElement.textContent = `${msg.username}: ${msg.text}`;
+                messagesDiv.appendChild(messageElement);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            });
+
+            socket.on('rate-limit-reached', (msg) => {
+                alert(msg);
+            });
+        }
+
+        function joinRoom() {
+            const room = document.getElementById('room').value;
+            socket.emit('join room', room);
+            console.log('Joined room:', room);
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('message');
+            const room = document.getElementById('room').value;
+            const message = messageInput.value;
+
+            if (message && room) {
+                socket.emit('chat message', message, room);
+                messageInput.value = '';
+            } else {
+                alert('Please enter a message and make sure you have joined a room.');
+            }
+        }
+    </script>
+</body>
+</html>
